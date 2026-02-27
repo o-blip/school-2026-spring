@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python -m flake8 hw2.py)",
+      "Bash(.venv/Scripts/python -m pylint hw2.py --errors-only)"
+    ]
+  }
+}
