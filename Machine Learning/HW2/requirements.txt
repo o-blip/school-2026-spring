@@ -1,0 +1,8 @@
+librosa
+numpy
+noisereduce
+matplotlib
+pydub
+scipy
+scikit-learn
+ipykernel

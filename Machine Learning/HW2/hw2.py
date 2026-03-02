@@ -94,8 +94,8 @@ plt.show()
 # =============================================================================
 # %%
 def splice_audio(audio, sr, pre_peak=100, post_peak=3000):
-    threshold = 0.3 * np.max(np.abs(audio))
-    peaks, _ = find_peaks(audio, height=threshold, distance=30000)
+    threshold = 0.2 * np.max(np.abs(audio))
+    peaks, _ = find_peaks(np.abs(audio), height=threshold, distance=20000)
     valid = [p for p in peaks if p >= pre_peak and p + post_peak <= len(audio)]
     splices = np.array([audio[p - pre_peak: p + post_peak] for p in valid])
     return splices
@@ -129,7 +129,7 @@ print(
 
 
 # =============================================================================
-# 4. AVERAGE PSD (full dataset) + TRAIN/TEST SPLIT
+# 4. TRAIN/TEST SPLIT + AVERAGE PSD (training data only)
 # =============================================================================
 # %%
 def peak_normalize(s):
@@ -137,15 +137,30 @@ def peak_normalize(s):
     return s / peak if peak > 0 else s
 
 
-f_h, _ = periodogram(peak_normalize(healthy_hits[0]), fs=SR)
-avg_psd_healthy = np.mean(
-    [periodogram(peak_normalize(s), fs=SR)[1] for s in healthy_hits], axis=0
-)
-avg_psd_unhealthy = np.mean(
-    [periodogram(peak_normalize(s), fs=SR)[1] for s in unhealthy_hits], axis=0
+# Split first so PSD visualisation is computed only on training data
+X_all = np.concatenate([healthy_hits, unhealthy_hits], axis=0)
+y_all = np.array([0] * len(healthy_hits) + [1] * len(unhealthy_hits))
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_all, y_all, test_size=0.3, shuffle=True, random_state=42, stratify=y_all
 )
 
-# Feature bands identified from full dataset (kHz, for plotting)
+print(f"Train - total: {len(X_train)}  ({(y_train == 0).sum()} healthy, {(y_train == 1).sum()} unhealthy)")
+print(f"Test  - total: {len(X_test)}  ({(y_test == 0).sum()} healthy, {(y_test == 1).sum()} unhealthy)")
+
+# Average PSD on training data only (avoids look-ahead into test set)
+train_healthy   = X_train[y_train == 0]
+train_unhealthy = X_train[y_train == 1]
+
+f_h, _ = periodogram(peak_normalize(train_healthy[0]), fs=SR)
+avg_psd_healthy = np.mean(
+    [periodogram(peak_normalize(s), fs=SR)[1] for s in train_healthy], axis=0
+)
+avg_psd_unhealthy = np.mean(
+    [periodogram(peak_normalize(s), fs=SR)[1] for s in train_unhealthy], axis=0
+)
+
+# Feature bands — mirrors bands_hz exactly (kHz, for plotting)
 bands = [
     (0.8, 1.1, "F1", False),
     (1.9, 2.2, "F2", False),
@@ -179,7 +194,7 @@ def add_bands(axis):
 
 fig, ax = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
 ax[0].plot(f_h / 1000, avg_psd_healthy)
-ax[0].set_title(f"Average PSD: Healthy (n={len(healthy_hits)} splices, full dataset)")
+ax[0].set_title(f"Average PSD: Healthy (n={len(train_healthy)} splices, train only)")
 ax[0].set_ylabel("PSD")
 ax[0].grid()
 ax[0].set_xlim(0, 8)
@@ -187,7 +202,7 @@ add_bands(ax[0])
 
 ax[1].plot(f_h / 1000, avg_psd_unhealthy, color="tab:orange")
 ax[1].set_title(
-    f"Average PSD: Unhealthy (n={len(unhealthy_hits)} splices, full dataset)"
+    f"Average PSD: Unhealthy (n={len(train_unhealthy)} splices, train only)"
 )
 ax[1].set_ylabel("PSD")
 ax[1].set_xlabel("Frequency (kHz)")
@@ -209,17 +224,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(IMAGES_DIR, "02_average_psd_bands.png"), dpi=150, bbox_inches="tight")
 plt.show()
 
-# Train / test split (shuffled to avoid cell-ordering bias)
-X_all = np.concatenate([healthy_hits, unhealthy_hits], axis=0)
-y_all = np.array([0] * len(healthy_hits) + [1] * len(unhealthy_hits))
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X_all, y_all, test_size=0.3, shuffle=True, random_state=42, stratify=y_all
-)
-
-print(f"Train - total: {len(X_train)}  ({(y_train == 0).sum()} healthy, {(y_train == 1).sum()} unhealthy)")
-print(f"Test  - total: {len(X_test)}  ({(y_test == 0).sum()} healthy, {(y_test == 1).sum()} unhealthy)")
-
 
 # =============================================================================
 # 5. FEATURE EXTRACTION  (MFCC and PSD band energies)
@@ -237,17 +241,16 @@ def extract_mfcc(splices, sr, n_mfcc=N_MFCC):
 
 
 
-# Band energies in Hz matching the identified feature bands
+# Band energies in Hz — matches bands list exactly
 bands_hz = [
-    (800, 1100),  # F1
-    (1700, 1900),  # F2
-    (1900, 2500),  # F3
-    (2800, 3100),  # F4
-    (3300, 3600),  # F5
-    (4000, 4500),  # F6
-    (5100, 5600),  # F7
-    (6000, 6500),  # F8 - healthy only
-    (7000, 7500),  # F9 - healthy only
+    (800,  1100),  # F1
+    (1900, 2200),  # F2
+    (2200, 2500),  # F3
+    (3300, 3600),  # F4
+    (4000, 4500),  # F5
+    (5100, 5300),  # F6
+    (5300, 5600),  # F7
+    (6000, 6500),  # F8
 ]
 
 
