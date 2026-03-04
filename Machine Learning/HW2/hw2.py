@@ -54,17 +54,11 @@ NOISE_SAMPLE_DURATION = (
 )
 
 
-def bandpass_filter(audio, sr, low_hz=200, high_hz=20000, order=5):
-    sos = butter(order, [low_hz, high_hz], btype="bandpass", fs=sr, output="sos")
-    return sosfilt(sos, audio)
-
-
 for num, info in recordings.items():
     audio, _ = librosa.load(info["wav_path"], sr=SR, mono=True)
     noise_sample = audio[: int(NOISE_SAMPLE_DURATION * SR)]
     audio_nr = nr.reduce_noise(y=audio, sr=SR, y_noise=noise_sample)
-    audio_clean = bandpass_filter(audio_nr, SR)
-    recordings[num]["audio"] = audio_clean
+    recordings[num]["audio"] = audio_nr
 
 print(f"Denoised {len(recordings)} recordings")
 
