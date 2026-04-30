@@ -16,7 +16,7 @@ def splice_audio(audio, pre_peak=100, post_peak=3000):
     return np.array([audio[p - pre_peak : p + post_peak] for p in valid])
 
 
-def is_double_tap(splice, pre_peak=100, threshold_ratio=0.35, min_separation=500):
+def is_double_tap(splice, pre_peak=100, threshold_ratio=0.6, min_separation=500):
     """
     Return True if the splice contains a second tap impact.
 
@@ -147,13 +147,8 @@ def load_datasets(
                     f"  WARNING: Dataset {ds_num} s_{num} ({info['label']}): "
                     f"{len(splices)} hits (expected {expected_hits[info['label']]})"
                 )
-            clean_splices = filter_double_taps(
-                splices, context=f"Dataset {ds_num} s_{num}"
-            )
-            if len(clean_splices):
-                (healthy_hits if info["label"] == "g" else unhealthy_hits).append(
-                    clean_splices
-                )
+            # TODO: re-enable filter_double_taps once detection is tuned
+            (healthy_hits if info["label"] == "g" else unhealthy_hits).append(splices)
 
     healthy_hits = np.array(
         [rms_normalize(s) for s in np.concatenate(healthy_hits, axis=0)]
@@ -200,10 +195,9 @@ def load_hw2_test_set(hw2_dir, sr, noise_sample_duration, expected_hits={"g": 10
             print(
                 f"  WARNING: hw2 s_{num} ({label}): {len(splices)} hits (expected {expected_hits[label]})"
             )
-        clean_splices = filter_double_taps(splices, context=f"hw2 s_{num}")
-        if len(clean_splices):
-            splices = np.array([rms_normalize(s) for s in clean_splices])
-            (hw2_healthy if label == "g" else hw2_unhealthy).append(splices)
+        # TODO: re-enable filter_double_taps once detection is tuned
+        splices = np.array([rms_normalize(s) for s in splices])
+        (hw2_healthy if label == "g" else hw2_unhealthy).append(splices)
 
     hw2_healthy = np.concatenate(hw2_healthy, axis=0)
     hw2_unhealthy = np.concatenate(hw2_unhealthy, axis=0)
