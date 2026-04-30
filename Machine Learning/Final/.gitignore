@@ -1,0 +1,7 @@
+# Generated / cached data — do not commit
+cache/
+wav/
+Images/
+
+# Virtual environment
+.venv/
