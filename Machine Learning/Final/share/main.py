@@ -3,7 +3,7 @@ from preprocess import preprocess, independent_split
 from features import extract_dwt_features, extract_mfcc_sequence, extract_mfcc_features
 from sklearn.preprocessing import StandardScaler
 from models import knn_sweep, svm_eval, cnn_eval, lstm_eval
-import numpy as np
+
 
 # %% Load in datasets for tasks 1-3
 data = preprocess() # preprocessed data in a dataclass
