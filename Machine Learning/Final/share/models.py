@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 
 # KNN
-def knn_sweep(X_train, X_test, y_train, y_test, k_range=range(1, 11)):
+def knn_eval(X_train, X_test, y_train, y_test, k_range=range(1, 11)):
     results = []
     for k, w, m in product(k_range, ['uniform', 'distance'], ['euclidean', 'manhattan']):
         knn = KNeighborsClassifier(n_neighbors=k, weights=w, metric=m)

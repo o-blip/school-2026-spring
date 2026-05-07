@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from sklearn.model_selection import train_test_split
-from load_datasets import convert_m4a_to_wav, denoise_all, split_training_data_into_datasets, splice_datasets
+from load_datasets import convert_m4a_to_wav, denoise_all, split_training_data_into_datasets, splice_datasets, split_experimental_data_into_datasets, splice_experimental_datasets
 from dataclasses import dataclass
 from typing import Optional
 
@@ -16,9 +16,10 @@ class PreprocessedData:
     y_test_flange: np.ndarray
     y_train_area: np.ndarray    # impact area number (1–4) for each training sample
     y_test_area: np.ndarray
-    datasets: dict              # nested dict { flange: { loading: { area: splices } } }
-    experimental_clean: list    # denoised experimental waveforms (not split; used separately)
-    datasets_raw: dict          # full-length waveforms before peak detection and splicing
+    datasets: dict               # nested dict { flange: { loading: { area: splices } } }
+    X_experimental: np.ndarray       # (N_exp, splice_len) spliced z-score normalized experimental waveforms
+    y_experimental_flange: np.ndarray  # flange ID for each experimental splice
+    datasets_raw: dict           # full-length waveforms before peak detection and splicing
 
 
 def preprocess(
@@ -58,6 +59,9 @@ def preprocess(
                                      cache_path=os.path.join(cache_dir, "training_denoised.npz"))
     experimental_clean = denoise_all(experimental_wav_paths, sr, noise_sample_duration,
                                      cache_path=os.path.join(cache_dir, "experimental_denoised.npz"))
+    experimental_datasets        = split_experimental_data_into_datasets(experimental_wav_paths, experimental_clean)
+    spliced_experimental         = splice_experimental_datasets(experimental_datasets)
+    X_experimental, y_experimental_flange = flatten_experimental_datasets(spliced_experimental)
 
     # Steps 3–5: group by flange, detect peaks, splice, z-normalize
     datasets              = split_training_data_into_datasets(training_wav_paths, training_clean)
@@ -79,7 +83,8 @@ def preprocess(
         y_train_flange=y_train_flange, y_test_flange=y_test_flange,
         y_train_area=y_train_area,     y_test_area=y_test_area,
         datasets=spliced_datasets_norm,
-        experimental_clean=experimental_clean,
+        X_experimental=X_experimental,
+        y_experimental_flange=y_experimental_flange,
         datasets_raw=datasets,
     )
 
@@ -102,6 +107,23 @@ def independent_split(
     X_test,  y_test,  _, _ = flatten_datasets(datasets, {left_out_flange})
 
     return X_train, X_test, y_train, y_test
+
+
+def flatten_experimental_datasets(
+    spliced_experimental: dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Flatten nested { flange: { area: splices } } dict into arrays.
+
+    Returns (X, y_flange) as numpy arrays.
+    """
+    X_list, y_flange_list = [], []
+
+    for flange, areas in spliced_experimental.items():
+        for _, splices in areas.items():
+            X_list.append(splices)
+            y_flange_list.extend([flange] * len(splices))
+
+    return np.concatenate(X_list, axis=0), np.array(y_flange_list)
 
 
 def flatten_datasets(

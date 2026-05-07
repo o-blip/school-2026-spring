@@ -71,7 +71,8 @@ def extract_dwt_features(X: np.ndarray, wavelet: str = 'db4', level: int = 4) ->
 
 # --- MFCC helpers ---
 
-def extract_mfcc_sequence(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, hop_length: int = 512) -> np.ndarray:
+def extract_mfcc_sequence(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, 
+                          n_fft: int = 256, hop_length: int = 64) -> np.ndarray:
     """Extract MFCC sequences suitable for LSTM input.
 
     Each splice becomes a (time_frames, n_mfcc) matrix, where
@@ -90,12 +91,13 @@ def extract_mfcc_sequence(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, hop_
     """
     sequences = []
     for splice in X:
-        mfcc = librosa.feature.mfcc(y=splice, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length)
+        mfcc = librosa.feature.mfcc(y=splice, sr=sr, n_mfcc=n_mfcc, n_fft=n_fft, hop_length=hop_length)
         sequences.append(mfcc.T)  # (n_mfcc, frames) → (frames, n_mfcc) transpose for LSTM input
     return np.array(sequences)
 
 
-def extract_mfcc_features(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, hop_length: int = 512) -> np.ndarray:
+def extract_mfcc_features(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, 
+                           n_fft: int = 256, hop_length: int = 64) -> np.ndarray:
     """Extract a fixed-length MFCC feature vector from each splice.
 
     Each of the 13 coefficients is summarized by 4 statistics:
@@ -114,7 +116,7 @@ def extract_mfcc_features(X: np.ndarray, sr: int = 48000, n_mfcc: int = 13, hop_
     """
     features = []
     for splice in X:
-        mfcc = librosa.feature.mfcc(y=splice, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length)
+        mfcc = librosa.feature.mfcc(y=splice, sr=sr, n_mfcc=n_mfcc, n_fft=n_fft, hop_length=hop_length)
         vec = []
         for coeff in mfcc:
             vec.extend([np.mean(coeff), np.var(coeff), kurtosis(coeff), skew(coeff)])

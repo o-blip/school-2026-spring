@@ -119,7 +119,7 @@ def splice_audio(audio: np.ndarray, pre_peak: int = 50, post_peak: int = 2400) -
     Peak detection uses a threshold of 40% of the max absolute amplitude with a
     minimum separation of 20000 samples (~0.4 s at 48 kHz) to avoid double-counting
     a single tap. Each window spans pre_peak samples before and post_peak samples
-    after the peak (total: 2450 samples by default).
+    after the peak (total: 2450 s.amples by default).
 
     Parameters
     ----------
@@ -169,6 +169,59 @@ def splice_datasets(
                 spliced[flange][loading][area] = s
         total = sum(len(s) for cond in spliced[flange].values() for s in cond.values())
         print(f"  Dataset {flange}: {total} splices")
+    return spliced
+
+
+def split_experimental_data_into_datasets(
+    wav_paths: list[str],
+    clean_audio: list[np.ndarray],
+) -> dict:
+    """Group cleaned experimental recordings into a nested dict keyed by flange number.
+
+    Parses filenames of the form F{flange}A{area}.wav and returns:
+        { flange (int): { area (str): audio (ndarray) } }
+    """
+    pattern  = re.compile(r"F(\d)A(\d)\.wav", re.IGNORECASE)
+    datasets = {}
+
+    for path, audio in zip(wav_paths, clean_audio):
+        fname = os.path.basename(path)
+        match = pattern.match(fname)
+        if not match:
+            print(f"  WARNING: could not parse experimental filename {fname}, skipping")
+            continue
+
+        flange = int(match.group(1))
+        area   = f"A{match.group(2)}"
+        datasets.setdefault(flange, {})[area] = audio
+
+    return datasets
+
+
+def splice_experimental_datasets(
+    datasets: dict,
+    pre_peak: int = 50,
+    post_peak: int = 2400,
+) -> dict:
+    """Apply splice_audio to every recording in the experimental dataset dict.
+
+    Parameters
+    ----------
+    datasets : nested dict { flange: { area: audio } }
+
+    Returns
+    -------
+    spliced : same nested structure with audio arrays replaced by splice arrays
+    """
+    spliced = {}
+    for flange, areas in sorted(datasets.items()):
+        spliced[flange] = {}
+        for area, audio in sorted(areas.items()):
+            s = splice_audio(audio, pre_peak, post_peak)
+            s = np.array([zscore_normalize(splice) for splice in s])
+            spliced[flange][area] = s
+        total = sum(len(s) for s in spliced[flange].values())
+        print(f"  Experimental Flange {flange}: {total} splices")
     return spliced
 
 

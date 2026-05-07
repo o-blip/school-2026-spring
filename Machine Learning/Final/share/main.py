@@ -2,7 +2,7 @@
 from preprocess import preprocess, independent_split
 from features import extract_dwt_features, extract_mfcc_sequence, extract_mfcc_features
 from sklearn.preprocessing import StandardScaler
-from models import knn_sweep, svm_eval, cnn_eval, lstm_eval
+from models import knn_eval, svm_eval, cnn_eval, lstm_eval
 
 
 # %% Load in datasets for tasks 1-3
@@ -41,7 +41,7 @@ for name in ['DWT', 'MFCC', 'Both']:
     X_tr = scaler.fit_transform(X_tr)
     X_te = scaler.transform(X_te)
     
-    knn_res = knn_sweep(X_tr, X_te, data.y_train, data.y_test)
+    knn_res = knn_eval(X_tr, X_te, data.y_train, data.y_test)
     svm_res = svm_eval(X_tr, X_te, data.y_train, data.y_test)
     print(f"  Dependent Test:")
     print(f"    KNN best: acc={knn_res[0][3]:.4f}")
@@ -56,7 +56,7 @@ for name in ['DWT', 'MFCC', 'Both']:
         X_tr_ind = scaler.fit_transform(X_tr_ind)
         X_te_ind = scaler.transform(X_te_ind)
         
-        knn_res = knn_sweep(X_tr_ind, X_te_ind, y_train_f, y_test_f)
+        knn_res = knn_eval(X_tr_ind, X_te_ind, y_train_f, y_test_f)
         svm_res = svm_eval(X_tr_ind, X_te_ind, y_train_f, y_test_f)
         print(f"  Flange {flange} held out: KNN={knn_res[0][3]:.4f}  SVM={svm_res[0][1]:.4f}")
 
